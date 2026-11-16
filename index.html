@@ -267,7 +267,7 @@ function lectura(b){
     ['3 · tema', cl===null ? 'falta el número CDD' : 'clase '+cl+' · '+CLASES[cl]],
     ['4 · lugar', LUGARES[b.lugarNivel].split(' (')[0].toLowerCase()+' · '+(b.lugarNivel===0?'sin ondas':b.lugarNivel===1?'1 onda':'2 ondas')],
     ['5 · año', 'siempre en números'],
-    ['6 · páginas', 'lomo de '+BUCKETS[bi]+' p.'+(n>1?' por volumen · '+n+' lomos':'')]
+    ['6 · páginas', (n>1 ? 'varios volúmenes · '+n+' lomos, sin líneas' : 'lomo de '+BUCKETS[bi]+' p. · '+(bi+1)+(bi===0?' línea':' líneas'))]
   ];
 }
 function fichaTexto(b){
@@ -304,15 +304,17 @@ function temaImg(cdd, cx, cy, exp, ink){
   const ic = ICONS[c], k = Math.min(S/ic.w, S/ic.h), w = ic.w*k, h = ic.h*k;
   return `<image ${exp?'':'class="icon" '}href="${ic.u}" xlink:href="${ic.u}" x="${(cx-w/2).toFixed(1)}" y="${(cy-h/2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}"/>`;
 }
+function bandasY(n){ const a = []; for (let k=0;k<n;k++){ a.push(62+12*k); a.push(CH-62-12*k); } return a; }
 function bookSVG(b, o={}){
   const exp = !!o.exp, ink = exp ? '#1C1C1C' : 'currentColor';
   const n = Math.max(1, Math.min(4, +b.vols||1)), gap = 6;
+  const nl = bucketIdx(perVol(b)) + 1;
   const sw = SW[bucketIdx(perVol(b))], sp = n*sw + (n-1)*gap, x0 = sp, cx = x0 + CW/2;
   let s = '';
   for (let i=0;i<n;i++){
     const sx = i*(sw+gap);
     s += `<rect x="${sx}" y="0" width="${sw}" height="${CH}" fill="${ink}"/>`;
-    for (const y of [62,74,CH-74,CH-62]) s += `<line x1="${sx}" x2="${sx+sw}" y1="${y}" y2="${y}" ${exp?'stroke="#FFFFFF"':'class="band"'} stroke-width="3"/>`;
+    if (n === 1) for (const y of bandasY(nl)) s += `<line x1="${sx}" x2="${sx+sw}" y1="${y}" y2="${y}" ${exp?'stroke="#FFFFFF"':'class="band"'} stroke-width="3"/>`;
   }
   s += `<rect x="${x0+3}" y="3" width="${CW-6}" height="${CH-6}" fill="none" stroke="${ink}" stroke-width="6"/>`;
   if (b.sub) s += `<rect x="${x0+17}" y="17" width="${CW-34}" height="${CH-34}" fill="none" stroke="${ink}" stroke-width="3"/>`;
@@ -501,7 +503,7 @@ function renderGame(){
   }
   if (G.modo==='leer') renderLeer(g); else renderCual(g);
 }
-const PAGOPS = BUCKETS.map((l,i) => [String(i), l+' p.']).concat([['v','2 o más volúmenes: un lomo por volumen']]);
+const PAGOPS = BUCKETS.map((l,i) => [String(i), l+' p. · '+(i+1)+(i===0?' línea':' líneas')]).concat([['v','2 o más volúmenes: un lomo por volumen']]);
 function opts(arr, sinElegir){ return (sinElegir?'<option value="">Elegí…</option>':'') + arr.map(([v,t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join(''); }
 function renderLeer(g){
   const b = G.libro;
@@ -524,7 +526,7 @@ function renderLeer(g){
 function comprobar(){
   if (G.hecho){ G.ronda++; if (G.ronda>G.total){ G.fin = true; if (G.puntos>best.leer){ best.leer = G.puntos; persist(); } } else { G.libro = libroAzar(); } G.hecho = false; renderGame(); return; }
   const b = G.libro, cor = {marco: b.sub?'si':'no', autor:b.autorTipo, tema:String(claseDe(b.cdd)), lugar:String(b.lugarNivel), pag:(+b.vols||1)>1 ? 'v' : String(bucketIdx(perVol(b))), anio:String(b.anio)};
-  const txt = {marco: v=>v==='si'?'Doble: título y subtítulo':'Simple: título', autor: v=>nombreAutor(v), tema: v=>v+' · '+CLASES[+v], lugar: v=>LUGARES[+v], pag: v=>v==='v' ? '2 o más volúmenes' : BUCKETS[+v]+' p.', anio: v=>v};
+  const txt = {marco: v=>v==='si'?'Doble: título y subtítulo':'Simple: título', autor: v=>nombreAutor(v), tema: v=>v+' · '+CLASES[+v], lugar: v=>LUGARES[+v], pag: v=>v==='v' ? '2 o más volúmenes' : BUCKETS[+v]+' p. ('+(+v+1)+(+v===0?' línea':' líneas')+')', anio: v=>v};
   let ok = 0;
   for (const k of Object.keys(cor)){
     const el = $('#q-'+k); if (!el.value){ $('#q-res').textContent = 'Completá todos los campos.'; $('#q-res').className = 'res bad'; return; }
@@ -619,7 +621,7 @@ function renderLeyenda(){
   const marco = d => sv('0 0 80 100', `<rect x="3" y="3" width="74" height="94" fill="none" stroke="${ink}" stroke-width="5"/>`+(d?`<rect x="13" y="13" width="54" height="74" fill="none" stroke="${ink}" stroke-width="2.5"/>`:''));
   const aut = (tipo) => sv('0 0 160 80', autorG(tipo, 80, 40, ink), 64);
   const pin = n => sv('0 0 100 100', pinG(50, 50, n, ink));
-  const lomo = (w, n) => { let s = ''; for (let i=0;i<n;i++){ const x = 6 + i*(w+3); s += `<rect x="${x}" y="0" width="${w}" height="100" fill="${ink}"/>`; for (const y of [8,14,86,92]) s += `<line x1="${x}" x2="${x+w}" y1="${y}" y2="${y}" class="band" stroke-width="2"/>`; } return sv(`0 0 ${12+n*(w+3)} 100`, s); };
+  const lomo = (w, n, nl) => { let s = ''; for (let i=0;i<n;i++){ const x = 6 + i*(w+3); s += `<rect x="${x}" y="0" width="${w}" height="100" fill="${ink}"/>`; for (let k=0;k<nl;k++) for (const y of [8+6*k, 92-6*k]) s += `<line x1="${x}" x2="${x+w}" y1="${y}" y2="${y}" class="band" stroke-width="2"/>`; } return sv(`0 0 ${12+n*(w+3)} 100`, s); };
   const temas = CLASES.map((c,i) => it(`<img class="icon" src="${ICONS[i].u}" alt="">`, c, i+'00'));
   $('#leyenda').innerHTML = `
   <div class="lg"><h2>título <small>el marco es la tapa del libro · doble si tiene subtítulo</small></h2>
@@ -632,8 +634,9 @@ function renderLeyenda(){
     <p class="nota">Se usa el Sistema de Clasificación Decimal Dewey. Dewey dividió el conocimiento en diez grandes categorías: generalidades, filosofía, religión, ciencias sociales, filología, ciencias naturales, técnica y ciencias prácticas, arte y literatura e historia. Cada cifra puede subdividirse muchas veces para identificar claramente cada tema. Esto se hace para organizar los libros en la estantería, de forma que todos los libros que traten un tema específico queden ubicados en el mismo lugar.</p></div>
   <div class="lg"><h2>lugar <small>lugar de publicación · cada onda suma distancia respecto de donde está la biblioteca</small></h2>
     <div class="items">${it(pin(0),'nacional: Argentina')}${it(pin(1),'regional: América')}${it(pin(2),'internacional: resto del mundo')}</div></div>
-  <div class="lg"><h2>páginas <small>el grosor del lomo crece con la cantidad de páginas</small></h2>
-    <div class="items">${SW.map((w,i)=>it(lomo(w/2.2,1), BUCKETS[i]+' p.')).join('')}${it(lomo(SW[2]/2.2,2),'varios volúmenes: un lomo por volumen')}</div></div>
+  <div class="lg"><h2>páginas <small>el grosor del lomo y sus líneas crecen con la cantidad de páginas</small></h2>
+    <div class="items">${SW.map((w,i)=>it(lomo(w/2.2,1,i+1), BUCKETS[i]+' p.', (i+1)+(i===0?' línea':' líneas'))).join('')}${it(lomo(SW[2]/2.2,2,0),'varios volúmenes: un lomo por volumen, sin líneas', '2 o más lomos')}</div>
+    <p class="nota">Se lee con dos pistas: el grosor del lomo y la cantidad de líneas horizontales. Una línea arriba y otra abajo es el lomo más fino (hasta 99 páginas); cada rango suma una línea a cada extremo. Si el libro tiene varios volúmenes, se dibuja un lomo por volumen y sin líneas.</p></div>
   <div class="lg"><h2>año <small>siempre en números</small></h2>
     <div class="items">${it('<span style="font:700 44px/1 var(--display);color:var(--ink);font-style:normal">1944</span>','el año de publicación, sin signos')}</div></div>`;
 }
